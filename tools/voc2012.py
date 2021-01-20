@@ -1,4 +1,3 @@
-import time
 import os
 import hashlib
 
@@ -8,17 +7,31 @@ import tensorflow as tf
 import lxml.etree
 import tqdm
 
-flags.DEFINE_string('data_dir', './data/voc2012_raw/VOCdevkit/VOC2012/',
-                    'path to raw PASCAL VOC dataset')
-flags.DEFINE_enum('split', 'train', [
-                  'train', 'val'], 'specify train or val spit')
-flags.DEFINE_string('output_file', './data/voc2012_train.tfrecord', 'outpot dataset')
+"""
+将原始的 PASCAL 数据集转换为 TFRecord 以进行目标检测
+参考 https://github.com/tensorflow/models/blob/master/research/object_detection/dataset_tools/create_pascal_tf_record.py
+
+使用方法:
+    python tools/voc2012.py --data_dir ./data/VOCdevkit/VOC2012 --split train --output_file ./data/voc2012_train.tfrecord
+    python tools/voc2012.py --data_dir ./data/VOCdevkit/VOC2012 --split val --output_file ./data/voc2012_val.tfrecord
+"""
+
+# 命令行参数
+flags.DEFINE_string('data_dir', './data/VOCdevkit/VOC2012/', 'path to raw PASCAL VOC dataset')
+flags.DEFINE_enum('split', 'train', ['train', 'val'], 'specify train or val spit')
+flags.DEFINE_string('output_file', './data/voc2012_train.tfrecord', 'output dataset')
 flags.DEFINE_string('classes', './data/voc2012.names', 'classes file')
 
 
 def build_example(annotation, class_map):
-    img_path = os.path.join(
-        FLAGS.data_dir, 'JPEGImages', annotation['filename'])
+    """
+    参考 https://github.com/tensorflow/models/blob/master/research/object_detection/dataset_tools/create_pascal_tf_record.py#L59
+    将 XML 转化为 tf.Example 类型
+    :param annotation: 单个图片的 annotation
+    :param class_map: 从 类别名 到 index 的映射
+    :return: example: 已经转化的 tf.Example
+    """
+    img_path = os.path.join(FLAGS.data_dir, 'JPEGImages', annotation['filename'])
     img_raw = open(img_path, 'rb').read()
     key = hashlib.sha256(img_raw).hexdigest()
 
@@ -72,6 +85,13 @@ def build_example(annotation, class_map):
 
 
 def parse_xml(xml):
+    """
+    参考 https://github.com/tensorflow/models/blob/master/research/object_detection/utils/dataset_util.py#L71
+    递归地将 xml 转化为 dict 类型
+    我们假设 object 标签是唯一可以在 xml tree 的同一级别中多次出现的标签
+    :param xml: 使用 lxml etree 解析 xml 得到的 xml tree
+    :return: 包含 xml 内容的 dict
+    """
     if not len(xml):
         return {xml.tag: xml.text}
     result = {}
@@ -86,18 +106,19 @@ def parse_xml(xml):
     return {xml.tag: result}
 
 
+# 参考 https://github.com/tensorflow/models/blob/master/research/object_detection/dataset_tools/create_pascal_tf_record.py#L147
 def main(_argv):
-    class_map = {name: idx for idx, name in enumerate(
-        open(FLAGS.classes).read().splitlines())}
+    # 读取 类别 并生成 map
+    class_map = {name: idx for idx, name in enumerate(open(FLAGS.classes).read().splitlines())}
     logging.info("Class mapping loaded: %s", class_map)
 
     writer = tf.io.TFRecordWriter(FLAGS.output_file)
-    image_list = open(os.path.join(
-        FLAGS.data_dir, 'ImageSets', 'Main', '%s.txt' % FLAGS.split)).read().splitlines()
+    # 获得 train.txt / val.txt 文件里的全部图片名称列表
+    image_list = open(os.path.join(FLAGS.data_dir, 'ImageSets', 'Main', '%s.txt' % FLAGS.split)).read().splitlines()
     logging.info("Image list loaded: %d", len(image_list))
+    # 解析并转化
     for name in tqdm.tqdm(image_list):
-        annotation_xml = os.path.join(
-            FLAGS.data_dir, 'Annotations', name + '.xml')
+        annotation_xml = os.path.join(FLAGS.data_dir, 'Annotations', name + '.xml')
         annotation_xml = lxml.etree.fromstring(open(annotation_xml).read())
         annotation = parse_xml(annotation_xml)['annotation']
         tf_example = build_example(annotation, class_map)
