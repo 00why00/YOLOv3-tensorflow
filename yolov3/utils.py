@@ -93,13 +93,20 @@ def broadcast_iou(box_1, box_2):
                        tf.maximum(box_1[..., 1], box_2[..., 1]), 0)
     int_area = int_w * int_h
     box_1_area = (box_1[..., 2] - box_1[..., 0]) * \
-        (box_1[..., 3] - box_1[..., 1])
+                 (box_1[..., 3] - box_1[..., 1])
     box_2_area = (box_2[..., 2] - box_2[..., 0]) * \
-        (box_2[..., 3] - box_2[..., 1])
+                 (box_2[..., 3] - box_2[..., 1])
     return int_area / (box_1_area + box_2_area - int_area)
 
 
 def draw_outputs(img, outputs, class_names):
+    """
+    bounding box 可视化
+    :param img: 输入图片
+    :param outputs: 输出
+    :param class_names: 类别名
+    :return: 可视化 bounding box 的图片
+    """
     boxes, objectness, classes, nums = outputs
     boxes, objectness, classes, nums = boxes[0], objectness[0], classes[0], nums[0]
     wh = np.flip(img.shape[0:2])
@@ -109,11 +116,18 @@ def draw_outputs(img, outputs, class_names):
         img = cv2.rectangle(img, x1y1, x2y2, (255, 0, 0), 2)
         img = cv2.putText(img, '{} {:.4f}'.format(
             class_names[int(classes[i])], objectness[i]),
-            x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
+                          x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
     return img
 
 
 def draw_labels(x, y, class_names):
+    """
+    label 可视化
+    :param x: 输入图片
+    :param y: 输出
+    :param class_names: 类别名
+    :return: 可视化 label 的图片
+    """
     img = x.numpy()
     boxes, classes = tf.split(y, (4, 1), axis=-1)
     classes = classes[..., 0]
@@ -122,14 +136,12 @@ def draw_labels(x, y, class_names):
         x1y1 = tuple((np.array(boxes[i][0:2]) * wh).astype(np.int32))
         x2y2 = tuple((np.array(boxes[i][2:4]) * wh).astype(np.int32))
         img = cv2.rectangle(img, x1y1, x2y2, (255, 0, 0), 2)
-        img = cv2.putText(img, class_names[classes[i]],
-                          x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL,
-                          1, (0, 0, 255), 2)
+        img = cv2.putText(img, class_names[classes[i]], x1y1, cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 0, 255), 2)
     return img
 
 
 def freeze_all(model, frozen=True):
     model.trainable = not frozen
     if isinstance(model, tf.keras.Model):
-        for l in model.layers:
-            freeze_all(l, frozen)
+        for layer in model.layers:
+            freeze_all(layer, frozen)
