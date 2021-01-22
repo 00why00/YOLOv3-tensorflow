@@ -11,25 +11,27 @@ flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
 
 
-def main(_argv):
+def main():
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(physical_devices) > 0:
+        # 启动内存增长（如果为启用内存增长，则运行时初始化不会分配设备上的所有内存）
         tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
+    # 创建 网络模型
     if FLAGS.tiny:
         yolo = YoloV3Tiny(classes=FLAGS.num_classes)
     else:
         yolo = YoloV3(classes=FLAGS.num_classes)
     yolo.summary()
     logging.info('model created')
-
+    # 加载预训练权重
     load_darknet_weights(yolo, FLAGS.weights, FLAGS.tiny)
     logging.info('weights loaded')
-
+    # 检查
     img = np.random.random((1, 320, 320, 3)).astype(np.float32)
     output = yolo(img)
     logging.info('sanity check passed')
-
+    # 保存权重
     yolo.save_weights(FLAGS.output)
     logging.info('weights saved')
 

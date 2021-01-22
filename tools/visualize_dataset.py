@@ -19,7 +19,7 @@ flags.DEFINE_string('classes', '../data/coco.names', 'path to classes file')
 flags.DEFINE_integer('size', 416, 'resize images to')
 flags.DEFINE_string('dataset', '../data/voc2012_train.tfrecord', 'path to dataset')
 flags.DEFINE_string('output', '../output.jpg', 'path to output image')
-flags.DEFINE_integer('yolo_max_boxes', 100, 'maximum bounding boxes per image')
+flags.DEFINE_integer('yolo_max_boxes', 100, 'maximum number of boxes per image')
 
 
 def main(_argv):
