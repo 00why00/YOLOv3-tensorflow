@@ -72,6 +72,12 @@ def transform_targets(y_train, anchors, anchor_masks, size):
 
 
 def transform_images(x_train, size):
+    """
+    调整图片
+    :param x_train: 训练图片
+    :param size: 调整到图片大小
+    :return: 调整后的图片
+    """
     x_train = tf.image.resize(x_train, (size, size))
     x_train = x_train / 255
     return x_train

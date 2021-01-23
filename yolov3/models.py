@@ -135,12 +135,18 @@ def DarknetTiny(name=None):
 
 
 def YoloConv(filters, name=None):
+    """
+    YOLO v3 卷积层
+    :param filters: 过滤器个数
+    :param name: 层名
+    :return: 网络
+    """
     def yolo_conv(x_in):
         if isinstance(x_in, tuple):
             inputs = Input(x_in[0].shape[1:]), Input(x_in[1].shape[1:])
             x, x_skip = inputs
 
-            # concat with skip connection
+            # 上采样
             x = DarknetConv(x, filters, 1)
             x = UpSampling2D(2)(x)
             x = Concatenate()([x, x_skip])
@@ -157,12 +163,18 @@ def YoloConv(filters, name=None):
 
 
 def YoloConvTiny(filters, name=None):
+    """
+    YOLO v3 tiny 卷积层
+    :param filters: 过滤器个数
+    :param name: 层名
+    :return: 网络
+    """
     def yolo_conv(x_in):
         if isinstance(x_in, tuple):
             inputs = Input(x_in[0].shape[1:]), Input(x_in[1].shape[1:])
             x, x_skip = inputs
 
-            # concat with skip connection
+            # 上采样
             x = DarknetConv(x, filters, 1)
             x = UpSampling2D(2)(x)
             x = Concatenate()([x, x_skip])
@@ -187,8 +199,7 @@ def YoloOutput(filters, anchors, classes, name=None):
         x = inputs = Input(x_in.shape[1:])
         x = DarknetConv(x, filters * 2, 3)
         x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False)
-        x = Lambda(lambda _x: tf.reshape(_x, (-1, tf.shape(_x)[1], tf.shape(_x)[2],
-                                              anchors, classes + 5)))(x)
+        x = Lambda(lambda _x: tf.reshape(_x, (-1, tf.shape(_x)[1], tf.shape(_x)[2], anchors, classes + 5)))(x)
         return tf.keras.Model(inputs, x, name=name)(x_in)
     return yolo_output
 
@@ -367,9 +378,9 @@ def YoloLoss(anchors, classes=80, ignore_thresh=0.5):
         true_wh = tf.math.log(true_wh / anchors)
         true_wh = tf.where(tf.math.is_inf(true_wh), tf.zeros_like(true_wh), true_wh)
 
-        # 4. calculate all masks
+        # 4. 计算全部的 anchor
         obj_mask = tf.squeeze(true_obj, -1)
-        # ignore false positive when iou is over threshold
+        # 当 IoU 大于阈值时忽略假正类（false positive）
         best_iou = tf.map_fn(
             lambda x: tf.reduce_max(broadcast_iou(x[0], tf.boolean_mask(
                 x[1], tf.cast(x[2], tf.bool))), axis=-1),
@@ -377,19 +388,19 @@ def YoloLoss(anchors, classes=80, ignore_thresh=0.5):
             tf.float32)
         ignore_mask = tf.cast(best_iou < ignore_thresh, tf.float32)
 
-        # 5. calculate all losses
-        xy_loss = obj_mask * box_loss_scale * \
-            tf.reduce_sum(tf.square(true_xy - pred_xy), axis=-1)
-        wh_loss = obj_mask * box_loss_scale * \
-            tf.reduce_sum(tf.square(true_wh - pred_wh), axis=-1)
+        # 5. 计算全部的损失
+        # 中心坐标误差
+        xy_loss = obj_mask * box_loss_scale * tf.reduce_sum(tf.square(true_xy - pred_xy), axis=-1)
+        # 宽高坐标误差
+        wh_loss = obj_mask * box_loss_scale * tf.reduce_sum(tf.square(true_wh - pred_wh), axis=-1)
+        # 置信度误差（交叉熵）
         obj_loss = binary_crossentropy(true_obj, pred_obj)
-        obj_loss = obj_mask * obj_loss + \
-            (1 - obj_mask) * ignore_mask * obj_loss
-        # TODO: use binary_crossentropy instead
-        class_loss = obj_mask * sparse_categorical_crossentropy(
-            true_class_idx, pred_class)
+        obj_loss = obj_mask * obj_loss + (1 - obj_mask) * ignore_mask * obj_loss
+        # 分类误差（交叉熵）
+        # 当分类一种物体时使用 binary_crossentropy
+        class_loss = obj_mask * sparse_categorical_crossentropy(true_class_idx, pred_class)
 
-        # 6. sum over (batch, gridx, gridy, anchors) => (batch, 1)
+        # 6. 求和 (batch, grid_x, grid_y, anchors) => (batch, 1)
         xy_loss = tf.reduce_sum(xy_loss, axis=(1, 2, 3))
         wh_loss = tf.reduce_sum(wh_loss, axis=(1, 2, 3))
         obj_loss = tf.reduce_sum(obj_loss, axis=(1, 2, 3))

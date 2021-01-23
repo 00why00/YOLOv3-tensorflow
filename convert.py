@@ -5,13 +5,17 @@ from yolov3.models import YoloV3, YoloV3Tiny
 from yolov3.utils import load_darknet_weights
 import tensorflow as tf
 
+"""
+将预训练权重保存为 checkpoint 形式
+"""
+
 flags.DEFINE_string('weights', './data/yolov3.weights', 'path to weights file')
 flags.DEFINE_string('output', './checkpoints/yolov3.tf', 'path to output')
 flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
 
 
-def main():
+def main(_argv):
     physical_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(physical_devices) > 0:
         # 启动内存增长（如果为启用内存增长，则运行时初始化不会分配设备上的所有内存）
