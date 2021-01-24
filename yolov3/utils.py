@@ -84,6 +84,7 @@ def load_darknet_weights(model, weights_file, tiny=False):
 def broadcast_iou(box_1, box_2):
     """
     计算 IoU
+    TODO: 使用 CIoU 使损失函数更好
     :param box_1: (..., (x1, y1, x2, y2))
     :param box_2: (N, (x1, y1, x2, y2))
     :return: IoU
@@ -146,7 +147,14 @@ def draw_labels(x, y, class_names):
 
 
 def freeze_all(model, frozen=True):
+    """
+    固化模型图结构和权重
+    :param model: 模型
+    :param frozen: 是否固化
+    """
+    # 设置不可训练
     model.trainable = not frozen
+    # 递归的固化 子layer
     if isinstance(model, tf.keras.Model):
         for layer in model.layers:
             freeze_all(layer, frozen)
