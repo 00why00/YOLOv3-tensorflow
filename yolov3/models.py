@@ -100,13 +100,13 @@ def Darknet(name=None):
     :param name: 网络名
     :return: 网络
     """
-    x = inputs = Input([None, None, 3])
-    x = DarknetConv(x, 32, 3)
-    x = DarknetBlock(x, 64, 1)
-    x = DarknetBlock(x, 128, 2)
-    x = x_36 = DarknetBlock(x, 256, 8)  # 跳跃连接
-    x = x_61 = DarknetBlock(x, 512, 8)  # 跳跃连接
-    x = DarknetBlock(x, 1024, 4)
+    x = inputs = Input([None, None, 3])  # batch_size, img_size, img_size, 3
+    x = DarknetConv(x, 32, 3)  # batch_size, img_size, img_size, 32
+    x = DarknetBlock(x, 64, 1)  # batch_size, img_size, img_size, 64
+    x = DarknetBlock(x, 128, 2)  # batch_size. img_size, img_size, 128
+    x = x_36 = DarknetBlock(x, 256, 8)  # batch_size, img_size, img_size, 256 提取特征,用于将97和36层特征拼接在一起
+    x = x_61 = DarknetBlock(x, 512, 8)  # batch_size, img_size, img_size, 512 提取特征，用于将85和61层特征拼接在一起
+    x = DarknetBlock(x, 1024, 4)  # batch_size, img_size, img_size, 1024
     return tf.keras.Model(inputs, (x_36, x_61, x), name=name)
 
 
@@ -196,10 +196,10 @@ def YoloOutput(filters, anchors, classes, name=None):
     :return: 输出网络
     """
     def yolo_output(x_in):
-        x = inputs = Input(x_in.shape[1:])
-        x = DarknetConv(x, filters * 2, 3)
-        x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False)
-        x = Lambda(lambda _x: tf.reshape(_x, (-1, tf.shape(_x)[1], tf.shape(_x)[2], anchors, classes + 5)))(x)
+        x = inputs = Input(x_in.shape[1:])  # batch_size, 13/26/52, 13/26/52, 512/256/128
+        x = DarknetConv(x, filters * 2, 3)  # batch_size, 13/26/52, 13/26/52, 1024/512/256
+        x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False)  # batch_size, 13/26/52, 13/26/52, 255
+        x = Lambda(lambda _x: tf.reshape(_x, (-1, tf.shape(_x)[1], tf.shape(_x)[2], anchors, classes + 5)))(x)  # batch_size, grid, grid, 3, 85
         return tf.keras.Model(inputs, x, name=name)(x_in)
     return yolo_output
 
@@ -207,7 +207,7 @@ def YoloOutput(filters, anchors, classes, name=None):
 def yolo_boxes(pred, anchors, classes):
     """
     解析预测结果
-    :param pred: 预测值 (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...classes))
+    :param pred: 预测值 (batch_size, grid, grid, anchors, (x, y, w, h, obj, classes))
     :param anchors: anchor数组
     :param classes: 类别数
     :return: bbox: bounding box 坐标 (x1 y1 x2 y2)
@@ -219,10 +219,10 @@ def yolo_boxes(pred, anchors, classes):
     grid_size = tf.shape(pred)[1:3]
     box_xy, box_wh, objectness, class_probs = tf.split(pred, (2, 2, 1, classes), axis=-1)
 
-    box_xy = tf.sigmoid(box_xy)
-    objectness = tf.sigmoid(objectness)
-    class_probs = tf.sigmoid(class_probs)
-    pred_box = tf.concat((box_xy, box_wh), axis=-1)
+    box_xy = tf.sigmoid(box_xy)  # batch_size, grid, grid, 3, 2
+    objectness = tf.sigmoid(objectness)  # batch_size, grid, grid, 3, 1
+    class_probs = tf.sigmoid(class_probs)  # batch_size, grid, grid, 3, 80
+    pred_box = tf.concat((box_xy, box_wh), axis=-1)  # batch_size, grid, grid, 3, 4
 
     # grid[x][y] == (y, x)
     grid = tf.meshgrid(tf.range(grid_size[1]), tf.range(grid_size[0]))
@@ -285,18 +285,19 @@ def YoloV3(size=None, channels=3, anchors=yolo_anchors,
     :param training: 是否训练
     :return: 网络
     """
-    x = inputs = Input([size, size, channels], name='input')
+    x = inputs = Input([size, size, channels], name='input')  # batch_size, 416, 416, 3
 
+    # x: batch_size, 13, 13, 1024; x_61: batch_size, 26, 26, 512; x_36: batch_size, 52, 52, 256
     x_36, x_61, x = Darknet(name='yolo_darknet')(x)
     # 第一层特征图，用于预测大尺寸物体
-    x = YoloConv(512, name='yolo_conv_0')(x)
-    output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)
+    x = YoloConv(512, name='yolo_conv_0')(x)  # None, 13, 13, 512
+    output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)  # batch_size, grid, grid, 3, 85
     # 第二层特征图，用于预测中尺寸物体
-    x = YoloConv(256, name='yolo_conv_1')((x, x_61))
-    output_1 = YoloOutput(256, len(masks[1]), classes, name='yolo_output_1')(x)
+    x = YoloConv(256, name='yolo_conv_1')((x, x_61))  # None, 26, 26, 256
+    output_1 = YoloOutput(256, len(masks[1]), classes, name='yolo_output_1')(x)  # batch_size, grid, grid, 3, 85
     # 第三层特征图，用于预测小尺寸物体
-    x = YoloConv(128, name='yolo_conv_2')((x, x_36))
-    output_2 = YoloOutput(128, len(masks[2]), classes, name='yolo_output_2')(x)
+    x = YoloConv(128, name='yolo_conv_2')((x, x_36))  # None, 52, 52, 128
+    output_2 = YoloOutput(128, len(masks[2]), classes, name='yolo_output_2')(x)  # batch_size, grid, grid, 3, 85
 
     if training:
         return Model(inputs, (output_0, output_1, output_2), name='yolov3')
@@ -354,7 +355,7 @@ def YoloLoss(anchors, classes=80, ignore_thresh=0.5):
         """
         计算损失
         :param y_true: 真实值 (batch_size, grid, grid, anchors, (x1, y1, x2, y2, obj, classes))
-        :param y_pred: 预测值 (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...classes))
+        :param y_pred: 预测值 (batch_size, grid, grid, anchors, (x, y, w, h, obj, classes))
         :return: 损失
         """
         # 1. 解析预测值
@@ -370,7 +371,7 @@ def YoloLoss(anchors, classes=80, ignore_thresh=0.5):
         # 提高小 box 的权重
         box_loss_scale = 2 - true_wh[..., 0] * true_wh[..., 1]
 
-        # 3. inverting the pred box equations
+        # 3. 转化真实值的 xy 为相对的，即转换到[0, 1]区间; wh 计算 bbox 的 log 大小
         grid_size = tf.shape(y_true)[1]
         grid = tf.meshgrid(tf.range(grid_size), tf.range(grid_size))
         grid = tf.expand_dims(tf.stack(grid, axis=-1), axis=2)
