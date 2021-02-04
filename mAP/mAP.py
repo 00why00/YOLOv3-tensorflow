@@ -18,7 +18,7 @@ from absl.flags import FLAGS
 
 flags.DEFINE_boolean('no_animation', True, 'no animation is shown')
 flags.DEFINE_boolean('no_plot', True, 'no plot is shown')
-flags.DEFINE_boolean('quiet', True, 'minimalistic console output')
+flags.DEFINE_boolean('quiet', False, 'minimalistic console output')
 # e.g. python mAP.py -ignore "person book"
 flags.DEFINE_spaceseplist('ignore', None, 'ignore a list of classes')
 # e.g. python mAP.py -set_class_iou "person 0.7 book 0.6"
@@ -250,9 +250,9 @@ def main(_argv):
         FLAGS.ignore = []
 
     # 设置文件路径
-    ground_truth_path = os.path.join(os.getcwd(), '../data', 'GroundTruth')
-    detection_results_path = os.path.join(os.getcwd(), '../data', 'DetectionResults')
-    image_path = os.path.join(os.getcwd(), '../data', 'image')
+    ground_truth_path = os.path.join(os.getcwd(), '../data', 'ground_truth')
+    detection_results_path = os.path.join(os.getcwd(), '../data', 'detection_result')
+    image_path = os.path.join(os.getcwd(), '../data', 'VOCdevkit', 'VOC2012', 'JPEGImages')
 
     # 没有图片时设置 no_animation 为 True
     if os.path.exists(image_path):
@@ -271,6 +271,7 @@ def main(_argv):
         os.makedirs(output_file_path)
     else:
         shutil.rmtree(output_file_path)
+        os.makedirs(output_file_path)
     if not FLAGS.no_plot:
         os.makedirs(os.path.join(output_file_path, 'classes'))
     if not FLAGS.no_animation:
@@ -420,8 +421,8 @@ def main(_argv):
             detection_results_data = json.load(open(detection_results_file))
 
             num_data = len(detection_results_data)
-            tp = [0] * num_data
-            fp = [0] * num_data
+            tp = [1e-6] * num_data
+            fp = [1e-6] * num_data
             for index, detection in enumerate(detection_results_data):
                 file_id = detection["file_id"]
                 if not FLAGS.no_animation:

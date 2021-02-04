@@ -24,11 +24,15 @@ for xml in xml_list:
         root = ET.parse(xml).getroot()
         for obj in root.findall('object'):
             obj_name = obj.find('name').text
+            difficult = obj.find('difficult').text
             bndbox = obj.find('bndbox')
             left = bndbox.find('xmin').text
             top = bndbox.find('ymin').text
             right = bndbox.find('xmax').text
             bottom = bndbox.find('ymax').text
-            f.write("%s %s %s %s %s\n" % (obj_name, left, top, right, bottom))
+            if difficult == '0':
+                f.write("%s %s %s %s %s\n" % (obj_name, left, top, right, bottom))
+            else:
+                f.write("%s %s %s %s %s difficult\n" % (obj_name, left, top, right, bottom))
 print("转化完成！")
 

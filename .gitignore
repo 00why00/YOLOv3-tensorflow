@@ -7,8 +7,12 @@
 /logs/
 /Untitled.ipynb
 /output.jpg
+/data/darknet53.conv.74
 /data/VOCdevkit
 /data/ground_truth
+/data/detection_result
+/mAP/.temp
+/mAP/output
 /.idea/
 
 # Created by https://www.gitignore.io/api/python

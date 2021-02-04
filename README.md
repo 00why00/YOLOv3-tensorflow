@@ -74,10 +74,10 @@ python convert.py --weights ./data/yolov3-tiny.weights --output ./checkpoints/yo
 
 ```bash
 # yolov3
-python detect.py --image ./data/meme.jpg
+python detect_image.py --image ./data/meme.jpg
 
 # yolov3-tiny
-python detect.py --weights ./checkpoints/yolov3-tiny.tf --tiny --image ./data/street.jpg
+python detect_image.py --weights ./checkpoints/yolov3-tiny.tf --tiny --image ./data/street.jpg
 
 # webcam
 python detect_video.py --video 0
@@ -275,7 +275,7 @@ convert.py:
     (default: '80')
     (an integer)
 
-detect.py:
+detect_image.py:
   --classes: path to classes file
     (default: './data/coco.names')
   --image: path to input image

@@ -12,17 +12,17 @@ from yolov3.utils import draw_outputs
 
 """
 目标检测
-可以传入 tf cored 形式数据集，也可以检测单张图片
+检测单张图片并可视化
 """
 
-flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
-flags.DEFINE_string('weights', './checkpoints/yolov3.tf', 'path to weights file')
+flags.DEFINE_string('classes', './data/voc.names', 'path to classes file')
+flags.DEFINE_string('weights', './checkpoints/yolov3_train_7.tf', 'path to weights file')
 flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_integer('size', 416, 'resize images to')
-flags.DEFINE_string('image', './data/girl.png', 'path to input image')
+flags.DEFINE_string('image', './data/meme.jpg', 'path to input image')
 flags.DEFINE_string('tfrecord', None, 'tfrecord instead of image')
 flags.DEFINE_string('output', './output.jpg', 'path to output image')
-flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
+flags.DEFINE_integer('num_classes', 20, 'number of classes in the model')
 
 
 def main(_argv):
