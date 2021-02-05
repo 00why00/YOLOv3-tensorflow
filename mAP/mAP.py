@@ -119,7 +119,7 @@ def voc_ap(precision, recall):
     # 使用数值积分计算 Precision-recall 曲线下面的面积
     ap = 0.0
     for i in change_list:
-        ap += ((precision[i] - recall[i - 1]) * precision[i])
+        ap += ((recall[i] - recall[i - 1]) * precision[i])
     return ap, precision, recall
 
 
@@ -421,8 +421,8 @@ def main(_argv):
             detection_results_data = json.load(open(detection_results_file))
 
             num_data = len(detection_results_data)
-            tp = [1e-6] * num_data
-            fp = [1e-6] * num_data
+            tp = [0] * num_data
+            fp = [0] * num_data
             for index, detection in enumerate(detection_results_data):
                 file_id = detection["file_id"]
                 if not FLAGS.no_animation:
@@ -461,8 +461,8 @@ def main(_argv):
                         bounding_box_gt = [float(x) for x in obj["bbox"].split()]
                         bounding_box_intersection = [max(bounding_box_dr[0], bounding_box_gt[0]),
                                                      max(bounding_box_dr[1], bounding_box_gt[1]),
-                                                     max(bounding_box_dr[2], bounding_box_gt[2]),
-                                                     max(bounding_box_dr[3], bounding_box_gt[3])]
+                                                     min(bounding_box_dr[2], bounding_box_gt[2]),
+                                                     min(bounding_box_dr[3], bounding_box_gt[3])]
                         intersection_width = bounding_box_intersection[2] - bounding_box_intersection[0] + 1
                         intersection_height = bounding_box_intersection[3] - bounding_box_intersection[1] + 1
                         if intersection_width > 0 and intersection_height > 0:
@@ -484,7 +484,7 @@ def main(_argv):
                         iou_index = FLAGS.set_class_iou.index(class_name)
                         min_overlap = float(iou_list[iou_index])
                 if iou_max >= min_overlap:
-                    if "difficult" not in ground_truth_match:
+                    if not ground_truth_match['difficult']:
                         if not bool(ground_truth_match["used"]):
                             # TP
                             tp[index] = 1
@@ -587,7 +587,7 @@ def main(_argv):
                 # noinspection PyTypeChecker
                 precision[index] = float(tp[index]) / (fp[index] + tp[index])
 
-            ap, m_recall, m_precision = voc_ap(precision[:], recall[:])
+            ap, m_precision, m_recall = voc_ap(precision[:], recall[:])
             sum_ap += ap
             text = "{0:.2f}%".format(ap * 100) + " = " + class_name + " AP "
 
